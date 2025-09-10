@@ -1,203 +1,247 @@
 "use client";
 
-import React, { useState, useEffect, useRef, MouseEvent } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion, animate } from "framer-motion";
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import Button from "@/components/ui/Button";
+import PopperCrackerIcon from "@/components/icons/PopperCrackerIcon";
 import Link from "next/link";
 
-const DATA = {
-  streakDays: 6,
-  timeToday: "15m",
-  baseScore: 952,
-  updatedScore: 1074,
-  breakdown: [
-    { label: "Completed DTE", value: 100 },
-    { label: "DTE Streak Multiplier", value: 7 },
-    { label: "Correct Knowledge Check Answer", value: 15 },
-  ],
-  totalDelta: 122,
-};
+// ===== helpers =====
+const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
-export default function ScoreUpdating({ expanded = false }: { expanded?: boolean }) {
-  // default -> collapsed
-  const [isExpanded, setIsExpanded] = useState<boolean>(expanded);
-
-  // keep in sync if parent changes prop after mount
+function CountUp({
+  from = 0,
+  to,
+  duration = 0.8,
+  format = (v: number) => v.toLocaleString(),
+  delay = 0,
+}: {
+  from?: number;
+  to: number;
+  duration?: number;
+  delay?: number;
+  format?: (v: number) => string;
+}) {
+  const [val, setVal] = useState(from);
   useEffect(() => {
-    setIsExpanded(expanded);
-  }, [expanded]);
+    const controls = animate(from, to, {
+      duration,
+      delay,
+      ease: "easeOut",
+      onUpdate: (v) => setVal(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [from, to, duration, delay]);
+  return <span className='tabular-nums'>{format(val)}</span>;
+}
 
-  const {
-    streakDays,
-    timeToday,
-    baseScore,
-    updatedScore,
-    breakdown,
-    totalDelta,
-  } = DATA;
+// ===== small icons  =====
+function FireIcon() {
+  return (
+    <svg width='18' height='20' viewBox='0 0 18 20' fill='none'>
+      <path
+        d='M10.1123 19.796C13.3272 19.1516 17.484 16.8389 17.484 10.8584C17.484 5.41618 13.5004 1.79219 10.636 0.127007C10.0003 -0.242492 9.25623 0.243445 9.25623 0.978654V2.8592C9.25623 4.3421 8.63275 7.04889 6.90034 8.17474C6.01585 8.74955 5.06061 7.88923 4.95311 6.83987L4.86484 5.97818C4.76223 4.97644 3.742 4.36833 2.94138 4.97908C1.50307 6.07629 0 7.99764 0 10.8584C0 18.172 5.43947 20.0004 8.1592 20.0004C8.31739 20.0004 8.48364 19.9957 8.6567 19.9857C7.31377 19.8709 5.14235 19.0377 5.14235 16.3433C5.14235 14.2357 6.67999 12.8098 7.84828 12.1167C8.16249 11.9303 8.53025 12.1723 8.53025 12.5377V13.1436C8.53025 13.6074 8.70961 14.3323 9.13655 14.8286C9.61968 15.3901 10.3288 14.8019 10.386 14.0633C10.4041 13.8303 10.6384 13.6818 10.8402 13.7997C11.4997 14.1852 12.3416 15.0087 12.3416 16.3433C12.3416 18.4496 11.1805 19.4185 10.1123 19.796Z'
+        fill='#E4782A'
+      />
+    </svg>
+  );
+}
+function ClockIcon() {
+  return (
+    <svg width='16' height='17' viewBox='0 0 16 17' fill='none'>
+      <path
+        d='M14.666 8.5A6.667 6.667 0 1 1 1.333 8.5a6.667 6.667 0 0 1 13.333 0Z'
+        fill='white'
+        fillOpacity='.8'
+      />
+      <path
+        d='M8 5.333V8.293l1.52 1.52'
+        stroke='#060502'
+        strokeLinecap='round'
+        strokeLinejoin='round'
+      />
+    </svg>
+  );
+}
+function HITEIcon() {
+  return (
+    <svg width='24' height='24' viewBox='0 0 24 24' fill='none'>
+      <circle cx='12' cy='12' r='10' fill='#6E5DFF' />
+      <circle cx='12' cy='12' r='5' fill='#2B235A' />
+      <circle cx='12' cy='12' r='2' fill='#B7A6FF' />
+    </svg>
+  );
+}
 
-  // ref for tile to detect outside clicks
-  const cardRef = useRef<HTMLDivElement | null>(null);
+// ===== Page =====
+export default function ScorePage() {
+  const HITE_BASE = 952;
+  const completedVal = 100;
+  const streakVal = 7;
+  const correctRowVal = 15;
+  const totalVal = completedVal + streakVal + correctRowVal;
+  const hiteDeltaVal = totalVal;
+  const daysFrom = 5;
+  const daysTo = 6;
 
+  // анимация перехода 1 → 2 экран
+  const [showFeedback, setShowFeedback] = useState(false);
   useEffect(() => {
-    const handleOutside = (e: MouseEvent | globalThis.MouseEvent) => {
-      const target = e.target as Node | null;
-      if (!cardRef.current) return;
-      if (!cardRef.current.contains(target) && isExpanded) {
-        setIsExpanded(false);
-      }
-    };
-
-    // use mousedown so it collapses promptly before other click handlers
-    document.addEventListener("mousedown", handleOutside as EventListener);
-    return () => document.removeEventListener("mousedown", handleOutside as EventListener);
-  }, [isExpanded]);
-
-  // Toggle when user clicks the score tile wrapper
-  const onCardClick = () => setIsExpanded((s) => !s);
-
-  // Prevent clicks on inner interactive elements (like Next) from toggling the card
-  const stopToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
+    const t = setTimeout(() => setShowFeedback(true), 1400);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-[#071025]">
-      <div
-        className="w-[380px] h-[812px] rounded-3xl overflow-hidden relative shadow-2xl"
-        aria-hidden={false}
-      >
-        {/* background gradient + subtle texture */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(500px 200px at 15% 10%, rgba(90,110,180,0.12), transparent 12%), radial-gradient(500px 240px at 85% 30%, rgba(160,90,210,0.08), transparent 10%), linear-gradient(180deg,#0b1220 0%, #071025 40%, #030410 100%)",
-            mixBlendMode: "screen",
-          }}
-        />
-        <div className="absolute inset-0 bg-black/30" />
+    <div className='min-h-dvh relative text-white'>
+      <div className='absolute inset-0 -z-10'>
+        <Image src='/bg.png' alt='' fill priority className='object-cover' />
+        <div className='absolute inset-0 bg-black/55' />
+      </div>
 
-        {/* Content */}
-        <div className="relative z-10 h-full flex flex-col">
-          {/* Top safe area */}
-          <div className="pt-5 px-6">
-            <div className="h-3" />
-          </div>
-
-          {/* Hero */}
-          <div className="flex-1 px-6 flex flex-col items-center justify-start text-center">
-            <div className="pt-8" />
-
-            {/* celebratory illustration */}
-            <div className="w-[160px] h-[140px] flex items-center justify-center mb-6 pointer-events-auto">
-              <svg viewBox="0 0 160 140" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="#8b5cf6" />
-                    <stop offset="1" stopColor="#3b82f6" />
-                  </linearGradient>
-                </defs>
-
-                {/* cone shape */}
-                <path d="M40 20 L120 20 L100 90 Q80 120 60 90 Z" fill="url(#g1)" opacity={isExpanded ? 1 : 0.9} transform="translate(0,8) rotate(-12 80 60)" />
-                {/* confetti pieces */}
-                <circle cx="30" cy="18" r="4" fill="#f472b6" />
-                <rect x="120" y="10" width="6" height="10" rx="2" fill="#facc15" transform="rotate(20 123 15)" />
-                <path d="M110 30 L115 38" stroke="#60a5fa" strokeWidth={3} strokeLinecap="round" />
-                <path d="M85 4 L90 14" stroke="#60e9a8" strokeWidth={3} strokeLinecap="round" />
-              </svg>
-            </div>
-
-            <h2 className="text-3xl font-extrabold text-white leading-tight mb-3">
-              {isExpanded ? "You Did It!" : "You've completed today's DTE."}
-            </h2>
-
-            <p className="text-sm text-white/80 max-w-[300px] mb-6">
-              You&apos;ve completed today&apos;s DTE. Your metrics have now changed!
-            </p>
-
-            {/* Active streak card */}
-            <div className="w-full max-w-[320px] bg-black/40 border border-white/6 rounded-xl p-4 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-white/80">Active Streak</div>
-                  <div className="text-[12px] text-white/70">Time spent today:</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/5 px-2 py-1 rounded-md text-xs text-white/90 flex items-center gap-2">
-                    <span className="inline-block w-3 h-3 rounded-full bg-orange-400" />
-                    <strong className="text-white">{streakDays} days</strong>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 text-sm text-white/60 flex justify-end">{timeToday}</div>
-            </div>
-
-            {/* Score card - clickable to toggle expand/collapse */}
-            <div
-              ref={cardRef}
-              onClick={onCardClick}
-              className="w-full max-w-[320px] rounded-xl bg-gradient-to-b from-[#190f2a]/60 to-[#0b0b12]/60 border border-white/10 shadow-lg overflow-hidden cursor-pointer"
+      <div className='max-w-md mx-auto px-6 pt-3 pb-10 flex flex-col min-h-dvh'>
+        <AnimatePresence mode='wait'>
+          {!showFeedback ? (
+            <motion.div
+              key='headline-1'
+              className='text-center mb-10 mt-8'
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.5, ease: EASE }}
             >
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#6d28d9] to-[#3b82f6] rounded-md flex items-center justify-center text-white font-bold">H</div>
-                    <div>
-                      <div className="text-sm text-white/80">HITE Score</div>
-                      <div className="text-xs text-white/60 inline-flex items-center gap-2">
-                        <span className="bg-white/10 px-2 py-0.5 rounded-full text-[10px]">Rookie</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-2xl font-extrabold text-white">{isExpanded ? updatedScore : baseScore}</div>
-                </div>
-
-                
+              <p className='text-white/85'>
+                You’ve completed today’s DTE. Your
+                <br />
+                metrics have now changed!
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key='headline-2'
+              className='text-center mb-10'
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.5, ease: EASE }}
+            >
+              <div className='w-fit mx-auto mb-3'>
+                <PopperCrackerIcon />
               </div>
+              <h1 className='text-[32px] font-bold mb-2'>You Did It!</h1>
+              <p className='text-white/85'>
+                You’ve completed today’s DTE. Your
+                <br />
+                metrics have now changed!
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-              {/* animated breakdown area */}
-              <AnimatePresence initial={false}>
-                {isExpanded && (
-                  <motion.div
-                    key="breakdown"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.35 }}
-                    className="px-4 pb-4"
-                  >
-                    <div className="mt-2 text-sm text-white/70 pb-2 border-t border-white/6 pt-3">
-                      {breakdown.map((b, i) => (
-                        <div className="flex justify-between items-center py-1" key={i}>
-                          <div className="text-xs">{b.label}</div>
-                          <div className="text-sm font-medium">+{b.value}</div>
-                        </div>
-                      ))}
-                    </div>
+        {/* ===== STATS CARD  ===== */}
+        <motion.div
+          className='w-full mb-3 p-4 bg-black/30 border border-white/20 rounded-2xl'
+          initial={{ opacity: 0, y: 14, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, ease: EASE }}
+        >
+          <div className='flex items-center justify-between'>
+            <span className='font-semibold'>Active Streak</span>
+            <div className='flex items-center gap-1.5'>
+              <FireIcon />
+              <span className='text-[22px] font-medium'>
+                <CountUp from={daysFrom} to={daysTo} duration={0.9} /> days
+              </span>
+            </div>
+          </div>
+          <div className='mt-1 flex items-center justify-between text-sm text-white/80'>
+            <span>Time spent today:</span>
+            <div className='flex items-center gap-1'>
+              <ClockIcon />
+              <span>15m</span>
+            </div>
+          </div>
+        </motion.div>
 
-                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/6 px-0">
-                      <div className="text-sm text-white/70">Total</div>
-                      <div className="text-sm font-semibold text-emerald-400">+{totalDelta} points</div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+        {/* ===== HITE SCORE CARD ===== */}
+        <motion.div
+          className='w-full relative overflow-hidden rounded-2xl border'
+          style={{ borderColor: "rgba(124,44,255,0.5)" }}
+          initial={{ opacity: 0, y: 16, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.7, ease: EASE, delay: 0.15 }}
+        >
+          <div
+            aria-hidden
+            className='absolute inset-0 opacity-90'
+            style={{
+              backgroundImage: "url('/hite-score-bg.png')",
+              backgroundSize: "290px 140px",
+              backgroundPosition: "right bottom",
+              backgroundRepeat: "no-repeat",
+            }}
+          />
+          <div className='relative z-10 p-4'>
+            <div className='flex items-center justify-between mb-2'>
+              <div className='flex items-center gap-2'>
+                <HITEIcon />
+                <span className='font-medium text-lg'>HITE Score</span>
+
+                <span className='ml-1 text-[10px] px-2 py-1 rounded-2xl bg-[#363391] text-[#B2FF8B]'>
+                  {showFeedback ? "🐤 Starter" : "🌱 Rookie"}
+                </span>
+              </div>
+              <span className='font-semibold text-2xl'>
+                <CountUp
+                  from={HITE_BASE}
+                  to={HITE_BASE + hiteDeltaVal}
+                  duration={1.0}
+                  delay={showFeedback ? 0.25 : 0}
+                />
+              </span>
             </div>
 
-            <div className="flex-1" />
-          </div>
+            <AnimatePresence initial={false}>
+              {showFeedback && (
+                <motion.div
+                  key='breakdown'
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.4, ease: EASE }}
+                  className='mt-1 pt-2 border-t border-white/20 text-sm'
+                >
+                  <div className='flex items-center justify-between py-0.5 text-white/85'>
+                    <span>Completed DTE</span>
+                    <span className='tabular-nums'>+{completedVal}</span>
+                  </div>
+                  <div className='flex items-center justify-between py-0.5 text-white/85'>
+                    <span>DTE Streak Multiplier</span>
+                    <span className='tabular-nums'>+{streakVal}</span>
+                  </div>
+                  <div className='flex items-center justify-between py-0.5 text-white/85'>
+                    <span>Correct Knowledge Check Answer</span>
+                    <span className='tabular-nums'>+{correctRowVal}</span>
+                  </div>
 
-          {/* Bottom area with Next button */}
-          <div className="px-6 pb-8">
-            <Link
-              href='/feedback'
-              className="flex justify-center mx-auto  py-4 font-medium text-lg"
-            >
+                  <div className='mt-1 flex items-center justify-between'>
+                    <span>Total</span>
+                    <span className='font-medium text-green-400 tabular-nums'>
+                      +{totalVal} points
+                    </span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+
+        <div className='mt-auto pt-8'>
+          <Link href='/feedback' className='block'>
+            <Button variant='text' className='w-full'>
               Next
-            </Link>
-          </div>
+            </Button>
+          </Link>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Arrow from "@/public/arrow.svg";
-import TransitCard from "../../components/TransitCard";
+
 import { useRouter } from "next/navigation";
 
 // Интерфейс вопроса (extended with answers per-question)
@@ -57,7 +57,8 @@ export default function Assessment() {
     const sample: Question[] = [
       {
         id: 1,
-        question: "What’s one of the best ways to interrupt a self-doubt spiral?",
+        question:
+          "What’s one of the best ways to interrupt a self-doubt spiral?",
         position: 1,
         use_common_answer: true,
         score_type: "confidence",
@@ -148,8 +149,7 @@ export default function Assessment() {
       localStorage.setItem("showDiscoverPopup", "true");
       localStorage.setItem("level", level);
       localStorage.setItem("finalScore", String(scaled));
-    } catch {
-    }
+    } catch {}
 
     return { scaled, level };
   };
@@ -166,7 +166,8 @@ export default function Assessment() {
     // update running scores (score_type)
     setScores((prev) => {
       const copy = { ...prev };
-      copy[current.score_type] = (copy[current.score_type] || 0) + pointsForChoice;
+      copy[current.score_type] =
+        (copy[current.score_type] || 0) + pointsForChoice;
       return copy;
     });
 
@@ -191,7 +192,8 @@ export default function Assessment() {
         const stored = JSON.parse(localStorage.getItem("answers") || "[]");
         const aggregate: Record<string, number> = {};
         for (const s of stored) {
-          aggregate[s.score_type] = (aggregate[s.score_type] || 0) + Number(s.score || 0);
+          aggregate[s.score_type] =
+            (aggregate[s.score_type] || 0) + Number(s.score || 0);
         }
         // ensure keys exist
         aggregate.composure = aggregate.composure || 0;
@@ -242,7 +244,8 @@ export default function Assessment() {
     // update scores (no-op since pointsForChoice is 0, but kept for parity)
     setScores((prev) => {
       const copy = { ...prev };
-      copy[current.score_type] = (copy[current.score_type] || 0) + pointsForChoice;
+      copy[current.score_type] =
+        (copy[current.score_type] || 0) + pointsForChoice;
       return copy;
     });
 
@@ -252,7 +255,8 @@ export default function Assessment() {
         const stored = JSON.parse(localStorage.getItem("answers") || "[]");
         const aggregate: Record<string, number> = {};
         for (const s of stored) {
-          aggregate[s.score_type] = (aggregate[s.score_type] || 0) + Number(s.score || 0);
+          aggregate[s.score_type] =
+            (aggregate[s.score_type] || 0) + Number(s.score || 0);
         }
         aggregate.composure = aggregate.composure || 0;
         aggregate.confidence = aggregate.confidence || 0;
@@ -266,7 +270,11 @@ export default function Assessment() {
 
       localStorage.setItem(
         "planProgress",
-        JSON.stringify({ discover: "completed", train: "completed", execute:"completed" })
+        JSON.stringify({
+          discover: "completed",
+          train: "completed",
+          execute: "completed",
+        })
       );
       router.push("/score");
     } else {
@@ -304,22 +312,22 @@ export default function Assessment() {
   // UI states
   if (loading) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center text-white text-2xl">
+      <div className='absolute inset-0 flex items-center justify-center text-white text-2xl'>
         Loading assessment...
       </div>
     );
   }
   if (error) {
     return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-red-500 text-center px-4">
-        <p className="text-xl">Error: {error}</p>
-        <p className="text-sm mt-2">Please try refreshing the page.</p>
+      <div className='absolute inset-0 flex flex-col items-center justify-center text-red-500 text-center px-4'>
+        <p className='text-xl'>Error: {error}</p>
+        <p className='text-sm mt-2'>Please try refreshing the page.</p>
       </div>
     );
   }
   if (questions.length === 0) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center text-white text-2xl">
+      <div className='absolute inset-0 flex items-center justify-center text-white text-2xl'>
         No HITE Assessment Questions Found
       </div>
     );
@@ -328,19 +336,12 @@ export default function Assessment() {
   const current = questions[selectedIndex];
 
   return (
-    <div className="absolute inset-0  flex items-center justify-center p-4">
+    <div className='absolute inset-0  flex items-center justify-center '>
       {/* Framed mobile container - matches success/other screens (width/height/background) */}
-      <div
-        className="w-full max-w-[420px] h-full max-h-[820px] rounded-[28px] overflow-hidden flex flex-col"
-        style={{
-          background: "linear-gradient(180deg, rgba(11,17,37,0.75), rgba(0,0,0,0.65))",
-          border: "1px solid rgba(255,255,255,0.04)",
-          boxShadow: "0 30px 60px rgba(0,0,0,0.75)",
-        }}
-      >
+      <div className='w-full max-w-md h-screen  overflow-hidden flex flex-col'>
         {/* decorative top radial (same visual language) */}
         <div
-          className="absolute inset-x-0 -top-8 h-48 rounded-t-[22px] pointer-events-none"
+          className='absolute inset-x-0 -top-8 h-48 rounded-t-[22px] pointer-events-none'
           style={{
             background:
               "radial-gradient(800px 120px at 10% 0%, rgba(60,80,140,0.12), transparent 20%), linear-gradient(90deg, rgba(40,50,90,0.06), transparent 40%)",
@@ -350,51 +351,53 @@ export default function Assessment() {
         />
 
         {/* Scrollable content area */}
-        <div className="flex-1 overflow-auto">
-          <div className="px-6 py-6">
+        <div className='flex-1 overflow-auto'>
+          <div className='px-2 py-6'>
             {/* Header */}
-            <div className="flex items-center gap-4">
+            <div className='flex items-center gap-4'>
               <button
-                className="p-1 rounded-full bg-transparent hover:bg-white/6 transition"
+                className='p-1 rounded-full bg-transparent hover:bg-white/6 transition'
                 onClick={handleBack}
-                aria-label="Back"
+                aria-label='Back'
               >
-                <Image src={Arrow} alt="Arrow" width={28} height={28} />
+                <Image src={Arrow} alt='Arrow' width={28} height={28} />
               </button>
-              <h2 className="text-white font-bold text-[20px]">Execute</h2>
+              <h2 className='text-white font-bold text-[20px]'>Execute</h2>
             </div>
 
             {/* progress */}
-            <div className="mt-4">
-              <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+            <div className='mt-4'>
+              <div className='w-full bg-white/10 h-2 rounded-full overflow-hidden'>
                 <div
-                  className="h-full bg-white rounded-full transition-all duration-500 ease-in-out shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                  className='h-full bg-white rounded-full transition-all duration-500 ease-in-out shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
                   style={{ width: `${fillPercentage}%` }}
                 />
               </div>
             </div>
 
             {/* fixed question area (scrolls if question too long) */}
-            <div className="mt-6">
+            <div className='mt-6'>
               <div
                 className={`h-28 overflow-y-auto transition-opacity duration-300 ease-in-out px-1 ${
                   textVisible ? "opacity-100" : "opacity-0"
                 }`}
               >
-                <p className="text-[20px] text-white leading-snug">{current.question}</p>
+                <p className='text-[20px] text-white leading-snug'>
+                  {current.question}
+                </p>
               </div>
             </div>
 
             {/* answers area (fixed height so card doesn't jump) */}
-            <div className="mt-6 flex flex-col items-center gap-4 flex-none h-[50%] overflow-y-auto py-2">
+            <div className='mt-6 flex flex-col items-center gap-4 flex-none h-[50%] overflow-y-auto py-2'>
               {/* If this is question with id === 2 render a textarea instead of buttons */}
               {current.id === 2 ? (
-                <div className="w-full max-w-[360px] h-[64%] flex flex-col">
+                <div className='w-full max-w-md h-[64%] flex flex-col'>
                   <textarea
                     value={textAnswer}
                     onChange={(e) => setTextAnswer(e.target.value)}
-                    placeholder="Type your response here..."
-                    className="w-full h-full min-h-[160px] max-h-[320px] rounded-lg p-4 resize-none bg-white/5 text-white placeholder:text-white/40 focus:outline-none border border-white/6"
+                    placeholder='Type your response here...'
+                    className='w-full h-full min-h-[160px] max-h-[320px] rounded-lg p-4 resize-none bg-white/5 text-white placeholder:text-white/40 focus:outline-none border border-white/6'
                   />
                 </div>
               ) : (
@@ -402,10 +405,11 @@ export default function Assessment() {
                   <button
                     key={i}
                     onClick={() => handleAnswer(i)}
-                    className="w-full max-w-[360px] h-[64px] rounded-[999px] relative flex items-center justify-center transition-transform duration-120 ease-in-out active:scale-[0.99] focus:outline-none"
+                    className='group relative w-full max-w-md h-[64px] rounded-[999px] flex items-center justify-start px-5 active:scale-[0.99] focus:outline-none'
+                    aria-label={txt}
                   >
                     <div
-                      className="absolute inset-0 rounded-[999px]"
+                      className='absolute inset-0 rounded-[999px]'
                       style={{
                         background:
                           "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00))",
@@ -415,48 +419,34 @@ export default function Assessment() {
                       }}
                     />
                     <div
-                      className="absolute inset-0 rounded-[999px] pointer-events-none"
+                      className='absolute inset-0 rounded-[999px] pointer-events-none'
                       style={{
                         boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.03)",
                       }}
                     />
-                    <div className="relative z-10 text-white text-[18px] font-medium select-none py-2">
+
+                    <span className='relative z-10 text-white text-base font-medium leading-snug text-left'>
                       {txt}
-                    </div>
+                    </span>
                   </button>
                 ))
               )}
             </div>
-
-            {/* Coach/other content could go here if needed */}
           </div>
         </div>
 
-        {/* Bottom area: page indicator, Submit button for textarea (if visible), and home indicator */}
-        <div className="px-6 pb-6">
-          <div className="flex items-center justify-between pt-4">
-            <div />
-            <div className="text-white/60 text-sm">
-              {selectedIndex + 1}/{questions.length}
-            </div>
-          </div>
-
-          {/* Submit button area for textarea question - fixed at bottom visually */}
+        {/* Bottom area */}
+        <div className='px-6 pb-6'>
           {current.id === 2 && textAnswer.trim().length > 0 && (
-            <div className="mt-4">
+            <div className='mt-4'>
               <button
                 onClick={handleTextSubmit}
-                className="w-full max-w-[420px] mx-auto block rounded-3xl px-6 py-3 text-black font-semibold bg-white"
+                className='w-full max-w-[420px] mx-auto block rounded-3xl px-6 py-3 text-black text-lg font-medium bg-white'
               >
                 Submit
               </button>
             </div>
           )}
-
-          {/* small spacer + home indicator imitation */}
-          <div className="mt-4 flex flex-col items-center gap-3">
-            <div className="w-24 h-1.5 bg-white/70 rounded-full" />
-          </div>
         </div>
       </div>
     </div>

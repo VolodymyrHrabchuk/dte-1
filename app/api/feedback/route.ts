@@ -1,68 +1,139 @@
 // app/api/feedback/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 
-export async function POST(request: Request) {
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function getSheetsClient() {
+  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_BASE64;
+  if (!b64) throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_BASE64");
+  const credentials = JSON.parse(Buffer.from(b64, "base64").toString("utf8"));
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+  return google.sheets({ version: "v4", auth });
+}
+
+function quoteA1Sheet(sheetName: string) {
+  const safe = sheetName.replace(/'/g, "''");
+  return `'${safe}'`;
+}
+
+// Защита от формульных инъекций в Google Sheets
+function sanitize(val: unknown): string {
+  const s = typeof val === "string" ? val : JSON.stringify(val ?? "");
+  return /^[=+@\-\t]/.test(s) ? `'${s}` : s;
+}
+
+type Body = {
+
+  overallRating?: number | null;     
+  helpfulRating?: number | null;     
+  engagingRating?: number | null;    
+  freeText?: string;                
+
+
+  lengthChoice?: "long" | "right" | "short" | null;
+  daysPerWeek?: number | null;      
+  notes?: string;                    
+  name?: string;
+
+
+  meta?: Record<string, unknown>;
+  sheet?: string; 
+};
+
+export async function POST(req: NextRequest) {
   try {
-    const payload = await request.json().catch(() => ({}));
+    const body: Body = await req.json();
 
-    // Ensure env var is present
-    const keyEnv = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_JSON;
-    if (!keyEnv) {
-      throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_KEY_JSON env var");
+   
+    if (
+      body.overallRating != null &&
+      (typeof body.overallRating !== "number" ||
+        body.overallRating < 1 ||
+        body.overallRating > 5)
+    ) {
+      return NextResponse.json({ error: "Invalid overallRating" }, { status: 400 });
     }
 
-    // Parse service account key JSON
-    interface GoogleServiceAccountKey {
-  client_email: string;
-  private_key: string;
-}
-
-let key: GoogleServiceAccountKey;
-try {
-  key = JSON.parse(keyEnv) as GoogleServiceAccountKey;
-} catch (err) {
-  throw new Error("Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY_JSON: " + String(err));
-}
-
-    try {
-      key = JSON.parse(keyEnv);
-    } catch (err) {
-      throw new Error("Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY_JSON: " + String(err));
+    const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    if (!spreadsheetId) {
+      return NextResponse.json(
+        { error: "Missing GOOGLE_SHEETS_SPREADSHEET_ID" },
+        { status: 500 },
+      );
     }
 
-    // Create JWT client using the modern options object shape
-    const jwtClient = new google.auth.JWT({
-      email: key.client_email,
-      key: key.private_key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    const sheetName = (body.sheet?.trim() || process.env.GOOGLE_SHEETS_SHEET_NAME || "DTE-1").trim();
+    const sheets = getSheetsClient();
 
-    await jwtClient.authorize();
 
-    const sheets = google.sheets({ version: "v4", auth: jwtClient });
-    const spreadsheetId = "1pJAUkdlXH7_W7Ip1k_G-BY2OrHsgvcp2vrEdCFFzinQ";
+    const metaRes = await sheets.spreadsheets.get({ spreadsheetId });
+    const exists = metaRes.data.sheets?.some((s) => s.properties?.title === sheetName);
+    if (!exists) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: [{ addSheet: { properties: { title: sheetName } } }] },
+      });
 
-    const values = [
-      [
-        payload.timestamp || new Date().toISOString(),
-        payload.rating || "",
-        payload.feedback || "",
-        payload.meta ? JSON.stringify(payload.meta) : "",
-        payload.userAgent || "",
-      ],
+
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `${quoteA1Sheet(sheetName)}!A:K`,
+        valueInputOption: "USER_ENTERED",
+        insertDataOption: "INSERT_ROWS",
+        requestBody: {
+          values: [[
+            "ts_iso",
+            "name",
+            "overall_rating",
+            "helpful_rating",
+            "engaging_rating",
+            "length_choice",
+            "days_per_week",
+            "notes",
+            "free_text",
+            "meta_json",
+            "user_agent",
+          ]],
+        },
+      });
+    }
+
+    const iso = new Date().toISOString();
+    const userAgent = req.headers.get("user-agent") || "";
+
+    const row = [
+      iso,
+      sanitize(body.name ?? ""),
+      body.overallRating ?? "",
+      body.helpfulRating ?? "",
+      body.engagingRating ?? "",
+      sanitize(body.lengthChoice ?? ""),
+      body.daysPerWeek ?? "",
+      sanitize(body.notes ?? ""),
+      sanitize(body.freeText ?? ""),
+      sanitize(body.meta ?? {}),
+      sanitize(userAgent),
     ];
+
+    const range = `${quoteA1Sheet(sheetName)}!A:K`;
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "Sheet1!A:E",
-      valueInputOption: "RAW",
-      requestBody: { values },
+      range,
+      valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [row] },
     });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("Sheets append error:", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Internal error";
+    console.error("Sheets append error:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

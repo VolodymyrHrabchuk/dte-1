@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import Arrow from "@/public/arrow.svg";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface Question {
@@ -28,21 +26,14 @@ export default function Assessment() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [textVisible, setTextVisible] = useState(true);
   const [fillPercentage, setFillPercentage] = useState(0);
-  const [scores, setScores] = useState<Record<string, number>>({
-    composure: 0,
-    confidence: 0,
-    competitiveness: 0,
-    commitment: 0,
-  });
+  const [picked, setPicked] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [picked, setPicked] = useState<Record<number, number>>({}); // qId -> answerIndex
+  const [error] = useState<string | null>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const updateProgress = (index: number) => {
-    const total = questions.length || 1;
-    setFillPercentage(Math.floor(((index + 1) / total) * 100));
-  };
+  const updateProgress = useCallback((index: number, total: number) => {
+    const safeTotal = total || 1;
+    setFillPercentage(Math.floor(((index + 1) / safeTotal) * 100));
+  }, []);
 
   useEffect(() => {
     const sample: Question[] = [
@@ -93,23 +84,19 @@ export default function Assessment() {
     ];
     setTimeout(() => {
       setQuestions(sample);
+      setSelectedIndex(0);
+      setTextVisible(true);
       setLoading(false);
+      setFillPercentage(Math.floor((1 / sample.length) * 100));
     }, 120);
   }, []);
-
-  useEffect(() => {
-    if (!questions.length) return;
-    setSelectedIndex(0);
-    setTextVisible(true);
-    setFillPercentage(Math.floor((1 / questions.length) * 100));
-  }, [questions]);
 
   useEffect(() => {
     if (!questions.length) return;
     setTextVisible(false);
     const t = setTimeout(() => {
       setTextVisible(true);
-      updateProgress(selectedIndex);
+      updateProgress(selectedIndex, questions.length);
     }, 60);
     return () => clearTimeout(t);
   }, [selectedIndex, questions.length, updateProgress]);
@@ -120,58 +107,32 @@ export default function Assessment() {
 
     setPicked((p) => ({ ...p, [current.id]: answerIndex }));
 
-    const answers = current.answers ?? [];
-    const pointsForChoice = Math.max(answers.length - 1 - answerIndex, 0); // 0..max
-
-    setScores((prev) => ({
-      ...prev,
-      [current.score_type]: (prev[current.score_type] || 0) + pointsForChoice,
-    }));
-
-    try {
-      const stored = JSON.parse(localStorage.getItem("answers") || "[]");
-      stored.push({
-        questionId: current.id,
-        score: pointsForChoice,
-        score_type: current.score_type,
-        answer: answers[answerIndex] ?? null,
-      });
-      localStorage.setItem("answers", JSON.stringify(stored));
-    } catch {}
-
     const next = selectedIndex + 1;
     if (next >= questions.length) {
-      localStorage.setItem(
-        "planProgress",
-        JSON.stringify({ discover: "completed", train: "available" })
-      );
-      router.push("/dashboard?view=discover");
+      try {
+        // помечаем завершение и явный флаг "только что завершили"
+        localStorage.setItem(
+          "planProgress",
+          JSON.stringify({ discover: "completed", train: "available" })
+        );
+        localStorage.setItem("__justCompletedDiscover", "1");
+
+        // ВАЖНО: сбрасываем сессионный флажок «уже показывали попап»,
+        // чтобы попап гарантированно показался сразу после редиректа
+        sessionStorage.removeItem("__train_popup_once");
+      } catch {
+        // ignore
+      }
+      // replace — чтобы не возвращаться обратно кнопкой Back в уже завершённый шаг
+      router.replace("/dashboard?view=discover");
     } else {
-      // небольшая задержка, чтобы увидеть «зажжённый» фон
       setTimeout(() => setSelectedIndex(next), 120);
     }
   };
 
   const handleBack = () => {
-    if (selectedIndex > 0) {
-      try {
-        const stored = JSON.parse(localStorage.getItem("answers") || "[]");
-        const last = stored.pop();
-        localStorage.setItem("answers", JSON.stringify(stored));
-        if (last) {
-          setScores((s) => {
-            const t = last.score_type as string;
-            return {
-              ...s,
-              [t]: Math.max(0, (s[t] || 0) - Number(last.score || 0)),
-            };
-          });
-        }
-      } catch {}
-      setSelectedIndex((i) => Math.max(0, i - 1));
-    } else {
-      router.back();
-    }
+    if (selectedIndex > 0) setSelectedIndex((i) => Math.max(0, i - 1));
+    else router.back();
   };
 
   if (loading)
@@ -182,15 +143,8 @@ export default function Assessment() {
     );
   if (error)
     return (
-      <div className='absolute inset-0 flex flex-col items-center justify-center text-red-500 text-center px-4'>
-        <p className='text-xl'>Error: {error}</p>
-        <p className='text-sm mt-2'>Please try refreshing the page.</p>
-      </div>
-    );
-  if (!questions.length)
-    return (
-      <div className='absolute inset-0 flex items-center justify-center text-white text-2xl'>
-        No HITE Assessment Questions Found
+      <div className='absolute inset-0 flex items-center justify-center text-red-500'>
+        {error}
       </div>
     );
 
@@ -201,10 +155,7 @@ export default function Assessment() {
 
   return (
     <div className='absolute inset-0 flex items-center justify-center'>
-      <div
-        className='w-full h-screen rounded-[28px] overflow-hidden flex flex-col'
-        
-      >
+      <div className='w-full h-screen rounded-[28px] overflow-hidden flex flex-col'>
         <div className='flex-1 overflow-auto'>
           <div className='px-6 py-6'>
             {/* header */}
@@ -214,7 +165,16 @@ export default function Assessment() {
                 onClick={handleBack}
                 aria-label='Back'
               >
-                <Image src={Arrow} alt='Arrow' width={28} height={28} />
+                <svg width='28' height='28' viewBox='0 0 24 24' fill='none'>
+                  <path
+                    d='M15 18l-6-6 6-6'
+                    stroke='white'
+                    strokeOpacity='.9'
+                    strokeWidth='2'
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                  />
+                </svg>
               </button>
               <h2 className='text-white font-bold text-[20px]'>Discover</h2>
             </div>
@@ -247,7 +207,6 @@ export default function Assessment() {
               {(current.answers ?? []).map((txt, i) => {
                 const isPicked = picked[current.id] === i;
 
-                // общее оформление «пилюли»
                 const baseStyle: React.CSSProperties = {
                   background: isPicked
                     ? "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))"
@@ -273,17 +232,14 @@ export default function Assessment() {
                       <span
                         className='flex-shrink-0 w-10 h-10 rounded-full grid place-items-center text-white/90 text-[15px] font-medium'
                         style={{
-                          background: isPicked
-                            ? "linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))"
-                            : "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
+                          background:
+                            "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
                           border: "1px solid rgba(255,255,255,0.10)",
                         }}
                       >
                         {rank}
                       </span>
-
-                      {/* одна строка, центр по вертикали */}
-                      <div className='flex-1 flex items-center '>
+                      <div className='flex-1 flex items-center'>
                         <span className='text-white text-[16px] font-medium leading-snug'>
                           {txt}
                         </span>
@@ -292,12 +248,11 @@ export default function Assessment() {
                   );
                 }
 
-                // Q1 и Q3 — без номера
                 return (
                   <button
                     key={i}
                     onClick={() => handleAnswer(i)}
-                    className='w-full rounded-[999px] px-4 h-[68px] flex items-center  active:scale-[0.995] transition text-center'
+                    className='w-full rounded-[999px] px-4 h-[68px] flex items-center active:scale-[0.995] transition text-center'
                     style={baseStyle}
                   >
                     <div className='flex-1 flex items-center'>

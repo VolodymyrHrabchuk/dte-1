@@ -1,4 +1,3 @@
-// app/dashboard/page.tsx
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
@@ -16,8 +15,9 @@ export default function DashboardInner() {
   const DEFAULT_SCORE = 952;
   const DEFAULT_LEVEL = "Rookie";
 
-  const [hiteScore] = useState(DEFAULT_SCORE);
-  const [level] = useState(DEFAULT_LEVEL);
+  const [hiteScore, setHiteScore] = useState<number>(DEFAULT_SCORE);
+
+  const [level] = useState(DEFAULT_LEVEL as "Rookie");
   const [activeStreak] = useState(5);
 
   const [discoverState, setDiscoverState] =
@@ -31,44 +31,58 @@ export default function DashboardInner() {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalFor, setModalFor] = useState<"train" | "execute" | null>(null);
 
-  // Синк статусов
+  // --- helpers ---
+  const readHiteScore = useCallback(() => {
+    try {
+      const scoreStr =
+        localStorage.getItem("hiteScore") ?? localStorage.getItem("finalScore");
+      if (!scoreStr) return;
+      const parsed = parseInt(scoreStr, 10);
+      if (!Number.isNaN(parsed)) setHiteScore(parsed);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const syncFromStorage = useCallback(() => {
-    // В режиме после assessments показываем 3 шага, но кликабелен только Discover
     if (showDiscoverOnly) {
       setDiscoverState("available");
       setTrainState("locked");
       setExecuteState("locked");
+      readHiteScore();
       return;
     }
 
     try {
+      readHiteScore();
+
       const stored = JSON.parse(localStorage.getItem("planProgress") || "{}");
 
       const prevD = prevDiscoverRef.current;
       const prevT = prevTrainRef.current;
 
-      const d = stored.discover === "completed" ? "completed" : "available";
-      const t =
+      const d: Exclude<StepState, "locked"> =
+        stored.discover === "completed" ? "completed" : "available";
+      const t: StepState =
         stored.discover === "completed"
           ? stored.train === "completed"
             ? "completed"
             : "available"
           : "locked";
-      const e =
+      const e: StepState =
         stored.execute === "completed"
           ? "completed"
           : stored.execute === "available"
           ? "available"
           : "locked";
 
-      setDiscoverState(d as Exclude<StepState, "locked">);
-      setTrainState(t as StepState);
-      setExecuteState(e as StepState);
+      setDiscoverState(d);
+      setTrainState(t);
+      setExecuteState(e);
 
-      // Доп. попапы при разблокировке в обычном режиме
       if (d === "completed" && t === "completed" && e === "completed") {
-        prevDiscoverRef.current = d as StepState;
-        prevTrainRef.current = t as StepState;
+        prevDiscoverRef.current = d;
+        prevTrainRef.current = t;
         return;
       }
 
@@ -81,31 +95,39 @@ export default function DashboardInner() {
         setModalVisible(true);
       }
 
-      prevDiscoverRef.current = d as StepState;
-      prevTrainRef.current = t as StepState;
+      prevDiscoverRef.current = d;
+      prevTrainRef.current = t;
     } catch {
       setDiscoverState("available");
       setTrainState("locked");
       setExecuteState("locked");
     }
-  }, [showDiscoverOnly]);
+  }, [readHiteScore, showDiscoverOnly]);
 
-  // ПОКАЗАТЬ ПОПАП ТОЛЬКО ПРИ ПЕРЕХОДЕ С DISCOVER → DASHBOARD (?view=discover)
   useEffect(() => {
-    if (!showDiscoverOnly) return; // работаем только на /dashboard?view=discover
+    readHiteScore();
+  }, [readHiteScore]);
+
+  useEffect(() => {
+    if (!showDiscoverOnly) return;
 
     try {
       const p = JSON.parse(localStorage.getItem("planProgress") || "{}");
       const shouldShow =
         p?.discover === "completed" && p?.train === "available";
-      const SEEN_KEY = "__train_popup_once";
 
-      if (shouldShow && sessionStorage.getItem(SEEN_KEY) !== "1") {
-        // маленькая задержка на маунт, чтобы исключить гонки с перерисовкой
+      const SEEN_KEY = "__train_popup_once";
+      const JUST_COMPLETED_KEY = "__justCompletedDiscover";
+
+      const justCompleted = localStorage.getItem(JUST_COMPLETED_KEY) === "1";
+      const notShownThisSession = sessionStorage.getItem(SEEN_KEY) !== "1";
+
+      if (shouldShow && (justCompleted || notShownThisSession)) {
         setTimeout(() => {
           setModalFor("train");
           setModalVisible(true);
-          sessionStorage.setItem(SEEN_KEY, "1"); // показать ровно один раз для этого захода
+          sessionStorage.setItem(SEEN_KEY, "1");
+          localStorage.removeItem(JUST_COMPLETED_KEY);
         }, 60);
       }
     } catch {
@@ -113,12 +135,18 @@ export default function DashboardInner() {
     }
   }, [showDiscoverOnly]);
 
-  // Общий ресинк по событиям
   useEffect(() => {
     syncFromStorage();
 
     const onStorage = (e: StorageEvent) => {
-      if (!e.key || e.key === "planProgress") syncFromStorage();
+      if (
+        !e.key ||
+        e.key === "planProgress" ||
+        e.key === "hiteScore" ||
+        e.key === "finalScore"
+      ) {
+        syncFromStorage();
+      }
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") syncFromStorage();
@@ -151,7 +179,6 @@ export default function DashboardInner() {
 
   return (
     <div className='absolute inset-0 flex items-center justify-center'>
-      {/* Мобильный фрейм */}
       <div
         className='
           w-full max-w-[520px] sm:max-w-[560px]
@@ -176,27 +203,27 @@ export default function DashboardInner() {
                   className='w-10 h-10 rounded-full bg-white/6 flex items-center justify-center'
                 >
                   <svg
-                    width='18'
-                    height='23'
-                    viewBox='0 0 18 23'
+                    width='30'
+                    height='30'
+                    viewBox='0 0 30 30'
                     fill='none'
                     xmlns='http://www.w3.org/2000/svg'
                   >
                     <path
-                      d='M9.10059 1.77417L9.10064 1.06982H9.10059V1.77417ZM15.2832 7.95679L15.9876 7.95679L15.9876 7.95678L15.2832 7.95679ZM16.8477 14.5906L17.552 14.5906L17.552 14.5906L16.8477 14.5906ZM13.6904 18.2937L13.7902 18.9909L13.7902 18.9909L13.6904 18.2937ZM9.09961 18.699L9.09958 19.4033L9.09961 19.4033L9.09961 18.699ZM4.50977 18.2937L4.40993 18.9909L4.40997 18.9909L4.50977 18.2937ZM1.35254 14.5906L0.648191 14.5906L0.648191 14.5906L1.35254 14.5906ZM2.91797 7.95679L2.21362 7.95678V7.95679H2.91797ZM1.94959 12.536L1.35543 12.1577L1.94959 12.536ZM16.2509 12.5367L15.6567 12.9149L16.2509 12.5367ZM9.10059 1.77417L9.10054 2.47852C12.1259 2.47874 14.5788 4.93146 14.5789 7.9568L15.2832 7.95679L15.9876 7.95678C15.9875 4.15337 12.9039 1.0701 9.10064 1.06982L9.10059 1.77417ZM15.2832 7.95679H14.5789V10.0767H15.2832H15.9876V7.95679H15.2832ZM16.2509 12.5367L15.6567 12.9149C15.9648 13.3989 16.1433 13.9727 16.1433 14.5906Л16.8477 14.5906L17.552 14.5906C17.552 13.6968 17.2927 12.8617 16.8451 12.1585L16.2509 12.5367ZM16.8477 14.5906L16.1433 14.5905C16.1432 16.0929 15.0761 17.3838 13.5906 17.5965L13.6904 18.2937L13.7902 18.9909C16.0064 18.6737 17.5518 16.756 17.552 14.5906L16.8477 14.5906ZM13.6904 18.2937L13.5906 17.5965C12.188 17.7972 10.461 17.9946 9.09961 17.9946L9.09961 18.699L9.09961 19.4033C10.5658 19.4033 12.3747 19.1936 13.7902 18.9909L13.6904 18.2937ZM9.09961 18.699L9.09964 17.9946C7.73832 17.9946 6.01204 17.7972 4.60957 17.5965L4.50977 18.2937L4.40997 18.9909C5.82533 19.1935 7.63346 19.4033 9.09958 19.4033L9.09961 18.699ZM4.50977 18.2937L4.6096 17.5965C3.12412 17.3838 2.05701 16.0928 2.05689 14.5905L1.35254 14.5906L0.648191 14.5906C0.648367 16.756 2.19393 18.6736 4.40993 18.9909L4.50977 18.2937Z'
+                      d='M15.5986 4.77417L15.5987 4.06982H15.5986V4.77417ZM21.7812 10.9568L22.4856 10.9568L22.4856 10.9568L21.7812 10.9568ZM23.3457 17.5906L24.0501 17.5906L24.0501 17.5906L23.3457 17.5906ZM20.1885 21.2937L20.2883 21.9909L20.2883 21.9909L20.1885 21.2937ZM15.5977 21.699L15.5976 22.4033L15.5977 22.4033L15.5977 21.699ZM11.0078 21.2937L10.908 21.9909L10.908 21.9909L11.0078 21.2937ZM7.85059 17.5906L7.14624 17.5906L7.14624 17.5906L7.85059 17.5906ZM9.41602 10.9568L8.71167 10.9568V10.9568H9.41602ZM8.44763 15.536L7.85348 15.1577L8.44763 15.536ZM22.749 15.5367L22.1548 15.9149L22.749 15.5367ZM15.5986 4.77417L15.5986 5.47852C18.624 5.47874 21.0769 7.93146 21.0769 10.9568L21.7812 10.9568L22.4856 10.9568C22.4855 7.15337 19.4019 4.0701 15.5987 4.06982L15.5986 4.77417ZM21.7812 10.9568H21.0769V13.0767H21.7812H22.4856V10.9568H21.7812ZM22.749 15.5367L22.1548 15.9149C22.4628 16.3989 22.6414 16.9727 22.6414 17.5906L23.3457 17.5906L24.0501 17.5906C24.0501 16.6968 23.7907 15.8617 23.3432 15.1585L22.749 15.5367ZM23.3457 17.5906L22.6414 17.5905C22.6412 19.0929 21.5742 20.3838 20.0887 20.5965L20.1885 21.2937L20.2883 21.9909C22.5044 21.6737 24.0499 19.756 24.0501 17.5906L23.3457 17.5906ZM20.1885 21.2937L20.0887 20.5965C18.686 20.7972 16.959 20.9946 15.5977 20.9946L15.5977 21.699L15.5977 22.4033C17.0638 22.4033 18.8727 22.1936 20.2883 21.9909L20.1885 21.2937ZM15.5977 21.699L15.5977 20.9946C14.2364 20.9946 12.5101 20.7972 11.1076 20.5965L11.0078 21.2937L10.908 21.9909C12.3234 22.1935 14.1315 22.4033 15.5976 22.4033L15.5977 21.699ZM11.0078 21.2937L11.1077 20.5965C9.62217 20.3838 8.55506 19.0928 8.55493 17.5905L7.85059 17.5906L7.14624 17.5906C7.14641 19.756 8.69197 21.6736 10.908 21.9909L11.0078 21.2937ZM7.85059 17.5906L8.55493 17.5906C8.55493 16.9725 8.73358 16.3984 9.04179 15.9143L8.44763 15.536L7.85348 15.1577C7.40567 15.8611 7.14624 16.6965 7.14624 17.5906L7.85059 17.5906ZM9.41602 13.0751H10.1204V10.9568H9.41602H8.71167V13.0751H9.41602ZM9.41602 10.9568L10.1204 10.9568C10.1204 7.93126 12.5731 5.47852 15.5986 5.47852V4.77417V4.06982C11.7951 4.06982 8.71172 7.15327 8.71167 10.9568L9.41602 10.9568ZM8.44763 15.536L9.04179 15.9143C9.50773 15.1824 10.1204 14.2067 10.1204 13.0751H9.41602H8.71167C8.71167 13.7361 8.35026 14.3774 7.85348 15.1577L8.44763 15.536ZM21.7812 13.0767H21.0769C21.0769 14.2079 21.6891 15.1832 22.1548 15.9149L22.749 15.5367L23.3432 15.1585C22.8467 14.3785 22.4856 13.7374 22.4856 13.0767H21.7812Z'
                       fill='white'
-                      fillOpacity='0.8'
+                      fill-opacity='0.8'
                     />
                     <path
-                      d='M11.0571 20.166C10.6365 20.8261 9.91725 21.2612 9.10061 21.2612C8.28397 21.2612 7.56471 20.8261 7.14409 20.166'
+                      d='M17.5552 23.166C17.1346 23.8261 16.4153 24.2612 15.5987 24.2612C14.782 24.2612 14.0628 23.8261 13.6421 23.166'
                       stroke='white'
-                      strokeOpacity='0.8'
-                      strokeWidth='1.4087'
-                      strokeLinecap='round'
+                      stroke-opacity='0.8'
+                      stroke-width='1.4087'
+                      stroke-linecap='round'
                     />
                     <circle
-                      cx='13.7957'
-                      cy='3.88705'
+                      cx='20.2938'
+                      cy='6.88705'
                       r='3.28696'
                       fill='#FD521B'
                     />
@@ -243,7 +270,7 @@ export default function DashboardInner() {
             <section className='relative mb-8'>
               <HiteSummaryCard
                 score={hiteScore}
-                level={level as "Rookie"}
+                level={level}
                 streakDays={activeStreak}
                 weekLabel='This week'
                 plansDone={2}
@@ -509,7 +536,7 @@ export default function DashboardInner() {
                               <path
                                 fillRule='evenodd'
                                 clipRule='evenodd'
-                                d='M7.99967 5.33301C8.27582 5.33301 8.49967 5.55687 8.49967 5.83301V8.29257L10.0199 9.81279C10.2152 10.008 10.2152 10.3246 10.0199 10.5199C9.82463 10.7152 9.50805 10.7152 9.31279 10.5199L7.64612 8.85323C7.55235 8.75946 7.49967 8.63228 7.49967 8.49967V5.83301C7.49967 5.55687 7.72353 5.33301 7.99967 5.33301Z'
+                                d='M7.99967 5.33301C8.27582 5.33301 8.49967 5.55687 8.49967 5.83301V8.29257Л10.0199 9.81279C10.2152 10.008 10.2152 10.3246 10.0199 10.5199C9.82463 10.7152 9.50805 10.7152 9.31279 10.5199L7.64612 8.85323C7.55235 8.75946 7.49967 8.63228 7.49967 8.49967V5.83301C7.49967 5.55687 7.72353 5.33301 7.99967 5.33301Z'
                                 fill='#060502'
                               />
                             </svg>
