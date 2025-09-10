@@ -7,7 +7,6 @@ import { useState } from "react";
 
 const DEFAULT_TEAM_ID = 1;
 
-
 const formatUSPhone = (value: string) => {
   const digits = value.replace(/\D/g, "").slice(0, 10);
   const len = digits.length;
@@ -92,13 +91,16 @@ const Dashboard = () => {
 
       // Navigate to assessments screen
       router.push("/assessments");
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Fallback error handling (shouldn't normally happen here)
+      const e = err as {
+        response?: { data?: { detail?: string; message?: string } };
+        message?: string;
+      };
       const msg =
-        err?.response?.data?.detail ??
-        err?.response?.data?.message ??
-        err?.detail ??
-        (typeof err === "string" ? err : err?.message) ??
+        e?.response?.data?.detail ??
+        e?.response?.data?.message ??
+        e?.message ??
         "Unexpected error";
       setError(msg);
     } finally {
@@ -112,22 +114,22 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center text-white mt-30 pb-10">
-      <Image width={192} height={48} src={Logo} alt="Logo" quality={100} />
-      <h1 className="mt-18 mb-10 text-center text-[32px] font-bold">
-        Hello! Let's get acquainted
+    <div className='absolute inset-0 flex flex-col items-center text-white mt-30 pb-10'>
+      <Image width={192} height={48} src={Logo} alt='Logo' quality={100} />
+      <h1 className='mt-18 mb-10 text-center text-[32px] font-bold'>
+        Hello! Let&apos;s get acquainted
       </h1>
 
-      <form className="space-y-8" onSubmit={handleSignup}>
+      <form className='space-y-8' onSubmit={handleSignup}>
         {/* Name */}
         <div>
-          <label htmlFor="name" className="block text-sm mb-2">
+          <label htmlFor='name' className='block text-sm mb-2'>
             Name
           </label>
           <input
-            id="name"
-            type="text"
-            placeholder="Enter your name"
+            id='name'
+            type='text'
+            placeholder='Enter your name'
             value={name}
             onChange={(e) => {
               setName(e.target.value);
@@ -135,29 +137,29 @@ const Dashboard = () => {
                 setFieldErrors({ ...fieldErrors, name: undefined });
               }
             }}
-            className="w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white"
+            className='w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white'
             style={{
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.3)",
             }}
           />
           {fieldErrors.name && (
-            <p className="text-red-500 text-sm mt-1">{fieldErrors.name}</p>
+            <p className='text-red-500 text-sm mt-1'>{fieldErrors.name}</p>
           )}
         </div>
 
         {/* School Name */}
         <div>
-          <label htmlFor="schoolName" className="block text-sm mb-2">
+          <label htmlFor='schoolName' className='block text-sm mb-2'>
             School Name
           </label>
           <input
-            id="schoolName"
-            type="text"
-            placeholder="Enter your school name"
+            id='schoolName'
+            type='text'
+            placeholder='Enter your school name'
             value={schoolName}
             onChange={(e) => setSchoolName(e.target.value)}
-            className="w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white"
+            className='w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white'
             style={{
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.3)",
@@ -167,13 +169,13 @@ const Dashboard = () => {
 
         {/* Email */}
         <div>
-          <label htmlFor="email" className="block text-sm mb-2">
+          <label htmlFor='email' className='block text-sm mb-2'>
             Email
           </label>
           <input
-            id="email"
-            type="email"
-            placeholder="Enter your email"
+            id='email'
+            type='email'
+            placeholder='Enter your email'
             value={emailInput}
             onChange={(e) => {
               setEmailInput(e.target.value);
@@ -181,26 +183,26 @@ const Dashboard = () => {
                 setFieldErrors({ ...fieldErrors, email: undefined });
               }
             }}
-            className="w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white"
+            className='w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white'
             style={{
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.3)",
             }}
           />
           {fieldErrors.email && (
-            <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>
+            <p className='text-red-500 text-sm mt-1'>{fieldErrors.email}</p>
           )}
         </div>
 
         {/* Phone Number */}
         <div>
-          <label htmlFor="phoneNumber" className="block text-sm mb-2">
+          <label htmlFor='phoneNumber' className='block text-sm mb-2'>
             Phone Number
           </label>
           <input
-            id="phoneNumber"
-            type="tel"
-            placeholder="(123) 456-7890"
+            id='phoneNumber'
+            type='tel'
+            placeholder='(123) 456-7890'
             value={phoneNumberInput}
             onChange={(e) => {
               const formatted = formatUSPhone(e.target.value);
@@ -209,32 +211,32 @@ const Dashboard = () => {
                 setFieldErrors({ ...fieldErrors, phone: undefined });
               }
             }}
-            className="w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white"
+            className='w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white'
             style={{
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.3)",
             }}
           />
           {fieldErrors.phone && (
-            <p className="text-red-500 text-sm mt-1">{fieldErrors.phone}</p>
+            <p className='text-red-500 text-sm mt-1'>{fieldErrors.phone}</p>
           )}
         </div>
 
-        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+        {error && <p className='text-red-500 text-sm text-center'>{error}</p>}
 
         <button
-          type="submit"
+          type='submit'
           disabled={loading}
-          className="w-[480px] py-[17.5px] rounded-full bg-white text-black font-medium text-lg"
+          className='w-[480px] py-[17.5px] rounded-full bg-white text-black font-medium text-lg'
         >
           {loading ? "Continuing..." : "Continue"}
         </button>
       </form>
 
       <button
-        type="button"
+        type='button'
         onClick={handleSkip}
-        className="mt-6 w-[480px] py-[17.5px] rounded-full bg-transparent border border-white text-white font-medium text-lg"
+        className='mt-6 w-[480px] py-[17.5px] rounded-full bg-transparent border border-white text-white font-medium text-lg'
       >
         I already have an account
       </button>

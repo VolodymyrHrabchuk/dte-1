@@ -13,7 +13,18 @@ export async function POST(request: Request) {
     }
 
     // Parse service account key JSON
-    let key: any;
+    interface GoogleServiceAccountKey {
+  client_email: string;
+  private_key: string;
+}
+
+let key: GoogleServiceAccountKey;
+try {
+  key = JSON.parse(keyEnv) as GoogleServiceAccountKey;
+} catch (err) {
+  throw new Error("Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY_JSON: " + String(err));
+}
+
     try {
       key = JSON.parse(keyEnv);
     } catch (err) {

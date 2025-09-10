@@ -113,7 +113,7 @@ export default function ScoreUpdating({ expanded = false }: { expanded?: boolean
             </h2>
 
             <p className="text-sm text-white/80 max-w-[300px] mb-6">
-              You've completed today's DTE. Your metrics have now changed!
+              You&apos;ve completed today&apos;s DTE. Your metrics have now changed!
             </p>
 
             {/* Active streak card */}
