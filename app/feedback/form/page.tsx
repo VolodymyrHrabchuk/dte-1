@@ -17,9 +17,7 @@ type Draft = {
   overall: number;
 };
 
-
 type LengthChoiceValue = "long" | "right" | "short";
-
 
 const LENGTH_OPTIONS: { label: string; value: LengthChoiceValue }[] = [
   { label: "Too Long", value: "long" },
@@ -53,7 +51,6 @@ export default function FeedbackFormPage() {
 
   const draft = draftRef.current;
 
- 
   const [lengthChoice, setLengthChoice] = useState<LengthChoiceValue | null>(
     null
   );
@@ -92,11 +89,11 @@ export default function FeedbackFormPage() {
         helpfulRating: draft.helpful,
         engagingRating: draft.engaging,
         freeText: "",
-        lengthChoice, 
-        daysPerWeek: days!, 
+        lengthChoice,
+        daysPerWeek: days!,
         notes,
         name: cleaned,
-        sheet: "Feedback",
+        sheet: "DTE-1",
         meta: {
           page: "feedback/form",
           appVersion: process.env.NEXT_PUBLIC_APP_VERSION || "demo",
@@ -116,6 +113,8 @@ export default function FeedbackFormPage() {
             execute: "completed",
           })
         );
+        localStorage.setItem("__skipExecutePopupOnce", "1");
+
         localStorage.setItem("profileName", cleaned);
         sessionStorage.removeItem(DRAFT_KEY);
       } catch {}

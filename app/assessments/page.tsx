@@ -1,7 +1,6 @@
-// app/assessments/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Arrow from "@/public/arrow.svg";
 import { useRouter } from "next/navigation";
@@ -41,6 +40,37 @@ export default function Assessment() {
 
   const [showResults, setShowResults] = useState(false);
   const [finalScore, setFinalScore] = useState<number>(0);
+
+  // ---------- success sound  ----------
+  const successAudioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    const a = new Audio("/success.mp3");
+    a.preload = "auto";
+    a.volume = 0.8;
+    // @ts-expect-error playsInline 
+    a.playsInline = true;
+    successAudioRef.current = a;
+    return () => {
+      if (successAudioRef.current) {
+        successAudioRef.current.pause();
+        successAudioRef.current.src = "";
+        successAudioRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showResults) return;
+    const t = setTimeout(() => {
+      const a = successAudioRef.current;
+      if (!a) return;
+      try {
+        a.currentTime = 0;
+        a.play().catch(() => {});
+      } catch {}
+    }, 300);
+    return () => clearTimeout(t);
+  }, [showResults]);
 
   const commonAnswerText = [
     "Strongly disagree",
@@ -224,7 +254,6 @@ export default function Assessment() {
 
     try {
       const stored = JSON.parse(localStorage.getItem("answers") || "[]");
-      
       stored.push({
         questionId: current.id,
         score: pts,
@@ -234,9 +263,7 @@ export default function Assessment() {
           : null,
       });
       localStorage.setItem("answers", JSON.stringify(stored));
-    } catch {
-      /* noop */
-    }
+    } catch {}
 
     const next = selectedIndex + 1;
     if (next >= questions.length) {
@@ -279,37 +306,39 @@ export default function Assessment() {
             return copy;
           });
         }
-      } catch {
-        /* noop */
-      }
+      } catch {}
       setSelectedIndex((i) => Math.max(0, i - 1));
     } else {
       router.back();
     }
   };
 
-  // ⬇️ Переходим на дашборд в режиме "только Discover"
-  const onResultsNext = () => router.push("/dashboard?view=discover");
+  const onResultsNext = () => {
+    router.push("/dashboard");
+  };
 
-  if (loading)
+  if (loading) {
     return (
       <div className='absolute inset-0 flex items-center justify-center text-white text-2xl'>
         Loading assessment...
       </div>
     );
-  if (error)
+  }
+  if (error) {
     return (
       <div className='absolute inset-0 flex flex-col items-center justify-center text-red-500 text-center px-4'>
         <p className='text-xl'>Error: {error}</p>
         <p className='text-sm mt-2'>Please try refreshing the page.</p>
       </div>
     );
-  if (questions.length === 0)
+  }
+  if (questions.length === 0) {
     return (
       <div className='absolute inset-0 flex items-center justify-center text-white text-2xl'>
         No HITE Assessment Questions Found
       </div>
     );
+  }
 
   if (showResults) {
     return (
@@ -336,6 +365,7 @@ export default function Assessment() {
                 You&apos;ve completed HITE Assessment!
               </p>
 
+              {/* показываем финальный скор ТОЛЬКО на этом экране, без записи в localStorage */}
               <HiteScoreCard score={952} />
             </div>
 

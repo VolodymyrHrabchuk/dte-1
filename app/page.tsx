@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import Image from "next/image";
 import LandingScreen from "@/components/LandingPage";
 
@@ -8,7 +8,6 @@ const images = [
   "/Ghome.png",
   "/Email.png",
   "/App-Store.png",
-  "/App-Store1.png",
   "/App-Store2.png",
   "/Splash-Screen.png",
 ];
@@ -31,15 +30,15 @@ export default function Page() {
   }
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-black overflow-hidden">
-      <div className="w-full max-w-[420px] h-full max-h-screen rounded-xl overflow-hidden relative">
+    <div className='h-screen w-screen flex items-center justify-center bg-black overflow-hidden'>
+      <div className='w-full max-w-[420px] h-full max-h-screen rounded-xl overflow-hidden relative'>
         <button
-          type="button"
-          aria-label="Advance image"
+          type='button'
+          aria-label='Advance image'
           onClick={goNext}
-          className="relative h-full w-full block p-0 m-0 border-0 bg-transparent cursor-pointer focus:outline-none"
+          className='relative h-full w-full block p-0 m-0 border-0 bg-transparent cursor-pointer focus:outline-none'
         >
-          <div className="absolute inset-0">
+          <div className='absolute inset-0'>
             {images.map((src, idx) => {
               const isActive = idx === activeIndex;
               return (

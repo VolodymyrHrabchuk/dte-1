@@ -89,7 +89,7 @@ export default function LandingPage() {
 
     const videoHasEnded = !!videoEndedMap[card.id];
     if (card.id === "f3" && videoHasEnded) {
-      setCurrentBgImage("/Train.jpg");
+      setCurrentBgImage("/static-bg.jpg");
     } else {
       const newBg = card.backgroundImage || "/video-bg.png";
       setCurrentBgImage(newBg);
@@ -99,7 +99,7 @@ export default function LandingPage() {
   const handleVideoEnded = (cardId: string) => {
     setVideoEndedMap((prev) => ({ ...prev, [cardId]: true }));
     if (cardId === "f3") {
-      setCurrentBgImage("/Train.jpg");
+      setCurrentBgImage("/static-bg.jpg");
     }
   };
 
@@ -126,7 +126,7 @@ export default function LandingPage() {
   const bgLayers: BgLayer[] = useMemo(
     () => [
       ...flashcards.map(({ id, backgroundImage }) => ({ id, backgroundImage })),
-      { id: "static-bg", backgroundImage: "/Train.jpg" },
+      { id: "static-bg", backgroundImage: "/static-bg.jpg" },
     ],
     [flashcards]
   );
@@ -178,7 +178,6 @@ export default function LandingPage() {
               )}
 
               {showFlashcards && (
-                // ✅ фикс: явная высота для зоны карточек, поверх — контент со z-index
                 <div className='relative overflow-hidden h-screen rounded-none'>
                   <div className='absolute inset-0'>
                     {bgLayers.map((layer) => {
@@ -221,8 +220,10 @@ export default function LandingPage() {
                             </>
                           ) : (
                             <div
-                              className='absolute inset-0 bg-cover bg-center bg-no-repeat filter blur-[10px]'
-                              style={{ backgroundImage: `url("${src}")` }}
+                              className='absolute inset-0 bg-cover bg-center bg-no-repeat filter blur-[10px] bg-black/30'
+                              style={{
+                                backgroundImage: `url("${src}")`,
+                              }}
                             />
                           )}
                         </div>
