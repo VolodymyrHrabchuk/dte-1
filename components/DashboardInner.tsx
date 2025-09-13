@@ -164,6 +164,7 @@ export default function DashboardInner() {
     } catch {}
   }, [showDiscoverOnly]);
 
+  // ⏰ Очистка localStorage один раз в сессию, когда всё завершено
   useEffect(() => {
     const allDone =
       discoverState === "completed" &&
@@ -182,6 +183,25 @@ export default function DashboardInner() {
         /* noop */
       }
     }, 600);
+
+    return () => clearTimeout(t);
+  }, [discoverState, trainState, executeState]);
+
+  useEffect(() => {
+    const allDone =
+      discoverState === "completed" &&
+      trainState === "completed" &&
+      executeState === "completed";
+
+    if (!allDone) return;
+
+    const t = setTimeout(() => {
+      try {
+        sessionStorage.removeItem("__train_popup_once");
+      } catch {
+        /* noop */
+      }
+    }, 3000);
 
     return () => clearTimeout(t);
   }, [discoverState, trainState, executeState]);

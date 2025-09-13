@@ -110,20 +110,15 @@ export default function Assessment() {
     const next = selectedIndex + 1;
     if (next >= questions.length) {
       try {
-        // помечаем завершение и явный флаг "только что завершили"
         localStorage.setItem(
           "planProgress",
           JSON.stringify({ discover: "completed", train: "available" })
         );
         localStorage.setItem("__justCompletedDiscover", "1");
-
-        // ВАЖНО: сбрасываем сессионный флажок «уже показывали попап»,
-        // чтобы попап гарантированно показался сразу после редиректа
         sessionStorage.removeItem("__train_popup_once");
       } catch {
         // ignore
       }
-      // replace — чтобы не возвращаться обратно кнопкой Back в уже завершённый шаг
       router.replace("/dashboard?view=discover");
     } else {
       setTimeout(() => setSelectedIndex(next), 120);
@@ -152,6 +147,7 @@ export default function Assessment() {
   const isScaleQ2 =
     (current.position === 2 || current.id === 2) &&
     current.answers?.length === 5;
+  const isFirstQuestion = current.position === 1 || current.id === 1; // центруємо тільки для Q1
 
   return (
     <div className='absolute inset-0 flex items-center justify-center'>
@@ -207,6 +203,11 @@ export default function Assessment() {
               {(current.answers ?? []).map((txt, i) => {
                 const isPicked = picked[current.id] === i;
 
+                // подсветка white/20 для двух конкретных вариантов
+                const shouldHighlight =
+                  (current.id === 2 && i === 2) ||
+                  (current.id === 3 && i === 1);
+
                 const baseStyle: React.CSSProperties = {
                   background: isPicked
                     ? "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))"
@@ -219,6 +220,11 @@ export default function Assessment() {
                     : "inset 0 1px 0 rgba(255,255,255,0.06), 0 6px 30px rgba(0,0,0,0.6)",
                 };
 
+                if (shouldHighlight) {
+                  baseStyle.background = "rgba(255,255,255,0.20)"; // white/20
+                }
+
+                // Шкала для Q2 (з лівим вирівнюванням — як і було)
                 if (isScaleQ2) {
                   const total = current.answers!.length;
                   const rank = total - i; // 5..1
@@ -248,15 +254,21 @@ export default function Assessment() {
                   );
                 }
 
+                // Звичайні відповіді: Q1 — центр, інші — зліва
+                const btnAlign = isFirstQuestion ? "text-center" : "text-left";
+                const innerAlign = isFirstQuestion
+                  ? "justify-center"
+                  : "justify-start";
+
                 return (
                   <button
                     key={i}
                     onClick={() => handleAnswer(i)}
-                    className='w-full rounded-[999px] px-4 h-[68px] flex items-center active:scale-[0.995] transition text-center'
+                    className={`w-full rounded-[999px] px-4 h-[68px] flex items-center active:scale-[0.995] transition ${btnAlign}`}
                     style={baseStyle}
                   >
-                    <div className='flex-1 flex items-center'>
-                      <span className='text-white mx-auto text-[18px] font-medium leading-snug'>
+                    <div className={`flex-1 flex items-center ${innerAlign}`}>
+                      <span className='text-white text-ase font-medium leading-snug'>
                         {txt}
                       </span>
                     </div>
