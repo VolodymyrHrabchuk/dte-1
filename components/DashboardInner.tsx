@@ -295,9 +295,22 @@ export default function DashboardInner() {
               <HiteSummaryCard
                 score={hiteScore}
                 level={level}
-                streakDays={activeStreak}
+                streakDays={
+                  activeStreak +
+                  (discoverState === "completed" &&
+                  trainState === "completed" &&
+                  executeState === "completed"
+                    ? 1
+                    : 0)
+                } 
                 weekLabel='This week'
-                plansDone={2}
+                plansDone={
+                  discoverState === "completed" &&
+                  trainState === "completed" &&
+                  executeState === "completed"
+                    ? 3
+                    : 2
+                } 
                 plansTotal={4}
                 timeSpent='1h 15m'
                 onShowMore={() => console.log("show more")}
