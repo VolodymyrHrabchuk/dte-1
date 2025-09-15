@@ -14,6 +14,8 @@ interface TimerProps {
   exhaleSec?: number; // 5
   breathMinRatio?: number; // 0.6
   breathMaxRatio?: number; // 0.9
+  /** задержка перед авто-ресетом после завершения, мс */
+  autoResetDelayMs?: number;
 }
 
 const Timer: React.FC<TimerProps> = ({
@@ -24,6 +26,7 @@ const Timer: React.FC<TimerProps> = ({
   exhaleSec = 5,
   breathMinRatio = 0.6,
   breathMaxRatio = 0.9,
+  autoResetDelayMs = 600,
 }) => {
   const size = 244;
   const strokeWidth = 10;
@@ -31,7 +34,6 @@ const Timer: React.FC<TimerProps> = ({
   const radius = (innerSize - strokeWidth) / 2;
   const circumference = useMemo(() => radius * 2 * Math.PI, [radius]);
 
-  // Refs
   const progressCircleRef = useRef<SVGCircleElement | null>(null);
   const progressDotRef = useRef<SVGCircleElement | null>(null);
   const breathCircleRef = useRef<SVGCircleElement | null>(null);
@@ -39,7 +41,6 @@ const Timer: React.FC<TimerProps> = ({
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const breathTLRef = useRef<gsap.core.Timeline | null>(null);
 
-  // ===== SFX (ding) =====
   const dingRef = useRef<HTMLAudioElement | null>(null);
   const dingUnlockedRef = useRef(false);
 
@@ -56,15 +57,28 @@ const Timer: React.FC<TimerProps> = ({
     };
   }, []);
 
-  const unlockDing = async () => {
+  const unlockDing = () => {
     const a = dingRef.current;
     if (!a || dingUnlockedRef.current) return;
     try {
       a.muted = true;
-      await a.play();
-      a.currentTime = 0;
-      a.muted = false;
-      dingUnlockedRef.current = true;
+      const prevVol = a.volume;
+      a.volume = 0;
+      const p = a.play();
+      if (p) {
+        void p
+          .then(() => {
+            a.pause();
+            a.currentTime = 0;
+            a.muted = false;
+            a.volume = prevVol;
+            dingUnlockedRef.current = true;
+          })
+          .catch(() => {
+            a.muted = false;
+            a.volume = prevVol;
+          });
+      }
     } catch {}
   };
 
@@ -86,6 +100,15 @@ const Timer: React.FC<TimerProps> = ({
   const rafActiveRef = useRef(false);
   const lastWholeSecRef = useRef(0);
   const accumElapsedRef = useRef(0);
+
+  const autoResetTimeoutRef = useRef<number | null>(null);
+  const clearAutoResetTimeout = () => {
+    if (autoResetTimeoutRef.current != null) {
+      window.clearTimeout(autoResetTimeoutRef.current);
+      autoResetTimeoutRef.current = null;
+    }
+  };
+  useEffect(() => () => clearAutoResetTimeout(), []);
 
   const mmss = useMemo(() => {
     const m = Math.floor(displaySeconds / 60)
@@ -153,7 +176,53 @@ const Timer: React.FC<TimerProps> = ({
     if (isRunning && displaySeconds === 0) {
       window.dispatchEvent(new Event("flashcards:timer-started"));
     }
-  }, [isRunning]);
+  }, [isRunning, displaySeconds]);
+
+  const resetToInitial = () => {
+    rafActiveRef.current = false;
+    setIsRunning(false);
+    setIsPaused(false);
+    setIsComplete(false);
+    accumElapsedRef.current = 0;
+    lastWholeSecRef.current = 0;
+    setDisplaySeconds(0);
+
+    if (progressCircleRef.current) {
+      progressCircleRef.current.style.strokeDasharray = `${circumference}`;
+      progressCircleRef.current.style.strokeDashoffset = `${circumference}`;
+    }
+    if (progressDotRef.current) {
+      progressDotRef.current.setAttribute("cx", String(size / 2));
+      progressDotRef.current.setAttribute("cy", String(size / 2 - radius));
+    }
+
+    breathTLRef.current?.kill();
+    breathTLRef.current = null;
+    const el = breathCircleRef.current;
+    if (el) {
+      const calmR = radius * ((breathMinRatio + breathMaxRatio) / 2);
+      gsap.set(el, { attr: { r: calmR } });
+    }
+  };
+
+  const handleComplete = () => {
+    rafActiveRef.current = false;
+    setIsRunning(false);
+    setIsComplete(true);
+    setIsPaused(false);
+    accumElapsedRef.current = timer * 1000;
+    breathTLRef.current?.kill();
+    breathTLRef.current = null;
+
+    playDing();
+    onComplete?.();
+
+    clearAutoResetTimeout();
+    autoResetTimeoutRef.current = window.setTimeout(
+      resetToInitial,
+      Math.max(0, autoResetDelayMs)
+    );
+  };
 
   useEffect(() => {
     if (!isRunning || isPaused) return;
@@ -197,16 +266,7 @@ const Timer: React.FC<TimerProps> = ({
       }
 
       if (elapsed >= timer * 1000) {
-        rafActiveRef.current = false;
-        setIsRunning(false);
-        setIsComplete(true);
-        setIsPaused(false);
-        accumElapsedRef.current = timer * 1000;
-        breathTLRef.current?.kill();
-        breathTLRef.current = null;
-
-        playDing();
-        onComplete?.();
+        handleComplete();
         return;
       }
       requestAnimationFrame(tick);
@@ -217,6 +277,7 @@ const Timer: React.FC<TimerProps> = ({
       rafActiveRef.current = false;
       cancelAnimationFrame(id);
     };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isRunning,
@@ -229,9 +290,12 @@ const Timer: React.FC<TimerProps> = ({
     circumference,
   ]);
 
-  // Кнопки
   const handleStart = () => {
+    unlockDing(); 
     if (isRunning || isComplete) return;
+
+    clearAutoResetTimeout();
+
     if (buttonRef.current) {
       gsap.to(buttonRef.current, {
         scale: 0.96,
@@ -250,7 +314,9 @@ const Timer: React.FC<TimerProps> = ({
   };
 
   const handlePauseResume = () => {
+    unlockDing();
     if (!isRunning) return;
+
     if (!isPaused) {
       setIsPaused(true);
       rafActiveRef.current = false;
@@ -279,16 +345,7 @@ const Timer: React.FC<TimerProps> = ({
           setDisplaySeconds(whole);
         }
         if (elapsed >= timer * 1000) {
-          rafActiveRef.current = false;
-          setIsRunning(false);
-          setIsComplete(true);
-          setIsPaused(false);
-          accumElapsedRef.current = timer * 1000;
-          breathTLRef.current?.kill();
-          breathTLRef.current = null;
-
-          playDing();
-          onComplete?.();
+          handleComplete();
           return;
         }
         requestAnimationFrame(loop);
@@ -298,30 +355,8 @@ const Timer: React.FC<TimerProps> = ({
   };
 
   const handleStop = () => {
-    rafActiveRef.current = false;
-    setIsRunning(false);
-    setIsPaused(false);
-    setIsComplete(false);
-    accumElapsedRef.current = 0;
-    lastWholeSecRef.current = 0;
-    setDisplaySeconds(0);
-
-    if (progressCircleRef.current) {
-      progressCircleRef.current.style.strokeDasharray = `${circumference}`;
-      progressCircleRef.current.style.strokeDashoffset = `${circumference}`;
-    }
-    if (progressDotRef.current) {
-      progressDotRef.current.setAttribute("cx", String(size / 2));
-      progressDotRef.current.setAttribute("cy", String(size / 2 - radius));
-    }
-
-    const el = breathCircleRef.current;
-    breathTLRef.current?.kill();
-    breathTLRef.current = null;
-    if (el) {
-      const calmR = radius * ((breathMinRatio + breathMaxRatio) / 2);
-      gsap.to(el, { attr: { r: calmR }, duration: 0.35, ease: "power2.out" });
-    }
+    clearAutoResetTimeout();
+    resetToInitial();
   };
 
   const state: "initial" | "running" | "paused" | "complete" =
@@ -336,7 +371,6 @@ const Timer: React.FC<TimerProps> = ({
   return (
     <>
       <div className={twMerge("block", className)} style={{ width: size }}>
-        {/* Фиксированная область круга */}
         <div className='relative' style={{ width: size, height: size }}>
           <svg width={size} height={size} className='block'>
             {/* фон дорожки */}
