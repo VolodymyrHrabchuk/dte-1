@@ -25,7 +25,6 @@ const Timer: React.FC<TimerProps> = ({
   breathMinRatio = 0.6,
   breathMaxRatio = 0.9,
 }) => {
-
   const size = 244;
   const strokeWidth = 10;
   const innerSize = 230;
@@ -62,7 +61,7 @@ const Timer: React.FC<TimerProps> = ({
     if (!a || dingUnlockedRef.current) return;
     try {
       a.muted = true;
-      await a.play(); 
+      await a.play();
       a.currentTime = 0;
       a.muted = false;
       dingUnlockedRef.current = true;
@@ -232,8 +231,6 @@ const Timer: React.FC<TimerProps> = ({
 
   // Кнопки
   const handleStart = () => {
-    void unlockDing();
-
     if (isRunning || isComplete) return;
     if (buttonRef.current) {
       gsap.to(buttonRef.current, {
@@ -253,8 +250,6 @@ const Timer: React.FC<TimerProps> = ({
   };
 
   const handlePauseResume = () => {
-    void unlockDing();
-
     if (!isRunning) return;
     if (!isPaused) {
       setIsPaused(true);
@@ -303,8 +298,6 @@ const Timer: React.FC<TimerProps> = ({
   };
 
   const handleStop = () => {
-    void unlockDing();
-
     rafActiveRef.current = false;
     setIsRunning(false);
     setIsPaused(false);
